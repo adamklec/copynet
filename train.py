@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from dataset import SequencePairDataset
-from encoder_decoder.encoder_decoder import EncoderDecoder
+from model.encoder_decoder import EncoderDecoder
 from evaluate import evaluate
 from utils import to_np, trim_seqs
 

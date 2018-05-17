@@ -6,11 +6,10 @@ from torch.autograd import Variable
 
 from dataset import SequencePairDataset
 from utils import seq_to_string, to_np, trim_seqs
-from encoder_decoder.encoder_decoder import EncoderDecoder
+from model.encoder_decoder import EncoderDecoder
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
-from encoder_decoder.copynet_decoder import CopyNetDecoder
 
 
 def evaluate(encoder_decoder: EncoderDecoder, data_loader):
