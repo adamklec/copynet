@@ -1,6 +1,6 @@
 # CopyNet
 
-This is an implementation of CopyNet https://arxiv.org/abs/1603.06393
+This is an implementation of [CopyNet](https://arxiv.org/abs/1603.06393)
 CopyNet extends the functionality of encoder-decoder models to allow the generation
 of output sequences that contain "out of vocabulary" tokens that appeared in the input sequence.
 
