@@ -6,7 +6,7 @@ Dependencies:
 pytorch
 numpy
 tensorboardX (for logging)
-tqmd (for logging)
+tqdm (for logging)
 spacy (for tokenization)
 
 The model is trained on sequence pairs. Create a directory to hold training files. Each file should have 2 lines of text.
