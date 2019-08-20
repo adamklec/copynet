@@ -18,3 +18,5 @@ I used spacy to tokenize the training data so the SequencePairDataset class as w
 If you want to use a different tokenizer be sure to update those files accordingly.
 
 Train the model using the train.py script. Most hyperparameters can be tuned with command line arguments documented in the training script.
+
+Unfortunately I cannot share the training data that I used to develop this model implementation. I did it using a proprietary data set that I no longer have access to. As it is now, you must provide your own training data in order for this repo to function. I would welcome PRs to enable a demo on an open source data set. 
