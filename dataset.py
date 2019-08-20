@@ -34,9 +34,6 @@ class Language(object):
             self.parser = English()
 
         vocab = dict()
-        with open('cleaned_first_names.txt', 'r') as f:
-            lines = f.readlines()
-            names = [line.lower().split()[0] for line in lines]  # unambiguous name tokens
 
         for file_idx, file in enumerate(self.files):
             if file_idx % 1000 == 0:
@@ -48,7 +45,7 @@ class Language(object):
                 tokens = list(lines)[0].split() + list(lines)[1].split()
                 for token in tokens:
                     # do not add name tokens to vocab
-                    if token not in names and not contains_digit(token) and '@' not in token and 'http' not in token and 'www' not in token:
+                    if not contains_digit(token) and '@' not in token and 'http' not in token and 'www' not in token:
                         vocab[token] = vocab.get(token, 0) + 1
         return vocab
 
