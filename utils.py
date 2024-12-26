@@ -3,7 +3,63 @@ import torch
 from torch.autograd import Variable
 from abc import ABC
 from torch import nn
+import matplotlib.pyplot as plt
+import os
+import jieba
 
+def Chinese_English_Splitter( text, part = "query"):
+    # 使用 jieba 进行分词
+    if part == "query":
+        """query语句保留空格"""
+        sub_text = text.split(" ")              # 先保留query语句中原有的空格
+        sub_split = []
+        for sub_t in sub_text:                  # 再对每个没有空格的子段进行分隔
+            if sub_t.strip() != "":              # 避免多个空格的情况
+                tokens = jieba.cut(sub_t)
+                ret_token = [ tok for tok in tokens if tok.strip()!= ""]
+                sub_split.append( ret_token )
+
+        ret_list = []
+        for i in range( len(sub_split)):        # 子段extend，空格append
+            ret_list.extend( sub_split[i] )
+            if i != len(sub_split )-1:
+                ret_list.append(" ")
+        return ret_list
+    elif part == "nl":
+        """自然语言查询不要空格"""
+        tokens = jieba.cut(text)
+        ret_token = [ tok for tok in tokens if tok.strip()!= ""]
+        return ret_token
+
+
+# 创建图形和第一个坐标轴
+def plots( val_loss, val_bleu, root_path ):
+    epochs = [1+i for i in range(len(val_loss))]
+    fig, ax1 = plt.subplots()
+
+    # 绘制 val loss 曲线
+    ax1.plot(epochs, val_loss, color='tab:red', label='val loss', marker='o')
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('val loss', color='tab:red')
+    ax1.tick_params(axis='y', labelcolor='tab:red')
+
+    # 创建第二个坐标轴，共享 x 轴
+    ax2 = ax1.twinx()
+
+    # 绘制 val BLEU 曲线
+    ax2.plot(epochs, val_bleu, color='tab:blue', label='val BLEU', marker='s')
+    ax2.set_ylabel('val BLEU', color='tab:blue')
+    ax2.tick_params(axis='y', labelcolor='tab:blue')
+
+    # 设置标题
+    plt.title('Training Progress: val loss vs val BLEU')
+
+    # 显示图例
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    plt.savefig( os.path.join( root_path,'training_progress.png' ), dpi=300)
+    # 显示图形
+    plt.show()
 
 class DecoderBase(ABC, nn.Module):
     def forward(self, encoder_outputs, inputs, final_encoder_hidden, targets=None, teacher_forcing=1.0):
@@ -20,12 +76,12 @@ def seq_to_string(seq, idx_to_tok, input_tokens=None):
     words = []
     for idx in seq[:seq_length]:
         if idx < vocab_size:
-            words.append(idx_to_tok[idx])
+            words.append(idx_to_tok[int(idx)])
         elif input_tokens is not None:
             words.append(input_tokens[idx - vocab_size])
         else:
             words.append('<???>')
-    string = ' '.join(words)
+    string = ''.join(words)             # 将空格也作为学习的一部分
     return string
 
 

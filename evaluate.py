@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 
+import os
+os.chdir("/home/jiangpeiwen2/jiangpeiwen2/Text2Cypher/baselines/copynet")
 
 def evaluate(encoder_decoder: EncoderDecoder, data_loader):
 
@@ -19,23 +21,23 @@ def evaluate(encoder_decoder: EncoderDecoder, data_loader):
     losses = []
     all_output_seqs = []
     all_target_seqs = []
+    with torch.no_grad():
+        for batch_idx, (input_idxs, target_idxs, _, _) in enumerate(tqdm(data_loader)):
+            input_lengths = (input_idxs != 0).long().sum(dim=1)
 
-    for batch_idx, (input_idxs, target_idxs, _, _) in enumerate(tqdm(data_loader)):
-        input_lengths = (input_idxs != 0).long().sum(dim=1)
+            sorted_lengths, order = torch.sort(input_lengths, descending=True)
+            
+            input_variable = Variable(input_idxs[order, :][:, :max(input_lengths)], volatile=True)
+            target_variable = Variable(target_idxs[order, :], volatile=True)
+            batch_size = input_variable.shape[0]
 
-        sorted_lengths, order = torch.sort(input_lengths, descending=True)
+            output_log_probs, output_seqs = encoder_decoder(input_variable, list(sorted_lengths))
+            all_output_seqs.extend(trim_seqs(output_seqs))
+            all_target_seqs.extend([list(seq[seq > 0])] for seq in to_np(target_variable))
 
-        input_variable = Variable(input_idxs[order, :][:, :max(input_lengths)], volatile=True)
-        target_variable = Variable(target_idxs[order, :], volatile=True)
-        batch_size = input_variable.shape[0]
-
-        output_log_probs, output_seqs = encoder_decoder(input_variable, list(sorted_lengths))
-        all_output_seqs.extend(trim_seqs(output_seqs))
-        all_target_seqs.extend([list(seq[seq > 0])] for seq in to_np(target_variable))
-
-        flattened_log_probs = output_log_probs.view(batch_size * encoder_decoder.decoder.max_length, -1)
-        batch_losses = loss_function(flattened_log_probs, target_variable.contiguous().view(-1))
-        losses.extend(list(to_np(batch_losses)))
+            flattened_log_probs = output_log_probs.view(batch_size * encoder_decoder.decoder.max_length, -1)
+            batch_losses = loss_function(flattened_log_probs, target_variable.contiguous().view(-1))
+            losses.extend(list(to_np(batch_losses)))
 
     mean_loss = len(losses) / sum(losses)
 
@@ -150,7 +152,7 @@ if __name__ == '__main__':
     random = random.Random(42)  # https://groups.google.com/forum/#!topic/nzpug/o4OW1O_4rgw
 
     arg_parser = argparse.ArgumentParser(description='Parse training parameters')
-    arg_parser.add_argument('model_name', type=str,
+    arg_parser.add_argument('--model_name', type=str, default="baseline1",
                             help='The name of a subdirectory of ./model/ that '
                              'contains encoder and decoder model files.')
 

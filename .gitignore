@@ -1,0 +1,12 @@
+**/__pycache__/
+**/.ipynb_checkpoints/
+**/*.log
+**/test.ipynb
+**/test.py
+**/kg_test.ipynb
+**/result_show.ipynb
+
+logs/
+train_data/
+model/baseline_CySpider_100e/
+model/baseline_SpCQL_100e/

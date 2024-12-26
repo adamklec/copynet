@@ -1,9 +1,10 @@
 import os
 import random
 from torch.utils.data import Dataset
-from utils import tokens_to_seq, contains_digit
+from utils import tokens_to_seq, contains_digit, Chinese_English_Splitter
 from operator import itemgetter
-
+from spacy.lang.en import English
+from spacy.lang.zh import Chinese
 
 class Language(object):
     def __init__(self, vocab_limit, data_path, parser, files=None):
@@ -15,9 +16,9 @@ class Language(object):
         else:
             self.files = os.listdir(self.data_path)
 
-        self.vocab = self.create_vocab()
+        self.vocab = self.create_vocab()        # 7502
 
-        truncated_vocab = sorted(self.vocab.items(), key=itemgetter(1), reverse=True)[:vocab_limit]
+        truncated_vocab = sorted(self.vocab.items(), key=itemgetter(1), reverse=True)[:vocab_limit]     #　vocab_limit
 
         self.tok_to_idx = dict()
         self.tok_to_idx['<MSK>'] = 0
@@ -30,8 +31,8 @@ class Language(object):
 
     def create_vocab(self):
         if self.parser is None:
-            from spacy.lang.en import English
-            self.parser = English()
+            
+            self.parser = Chinese()
 
         vocab = dict()
 
@@ -42,7 +43,8 @@ class Language(object):
             with open(self.data_path + file, "r") as f:
                 lines = f.readlines()
                 assert len(lines) == 2
-                tokens = list(lines)[0].split() + list(lines)[1].split()
+                """分词"""
+                tokens = Chinese_English_Splitter( list(lines)[0], part="nl") + Chinese_English_Splitter( list(lines)[1], part="query" )
                 for token in tokens:
                     # do not add name tokens to vocab
                     if not contains_digit(token) and '@' not in token and 'http' not in token and 'www' not in token:
@@ -52,7 +54,8 @@ class Language(object):
 
 class SequencePairDataset(Dataset):
     def __init__(self,
-                 data_path='./data/',
+                 data_path='./train_data/data/',
+                 parser=Chinese(),
                  maxlen=200,
                  lang=None,
                  vocab_limit=None,
@@ -65,7 +68,7 @@ class SequencePairDataset(Dataset):
         self.data_path = data_path
         self.maxlen = maxlen
         self.use_cuda = use_cuda
-        self.parser = None
+        self.parser = parser
         self.val_size = val_size
         self.seed = seed
         self.is_val = is_val
@@ -106,8 +109,8 @@ class SequencePairDataset(Dataset):
         token_mapping: binary array"""
 
         with open(self.data_path + self.files[idx], "r", encoding='utf-8') as pair_file:
-            input_token_list = pair_file.readline().split()
-            output_token_list = pair_file.readline().split()
+            input_token_list = Chinese_English_Splitter( pair_file.readline(), part="nl" )
+            output_token_list = Chinese_English_Splitter( pair_file.readline(), part="query" )
 
         input_token_list = (['<SOS>'] + input_token_list + ['<EOS>'])[:self.maxlen]
         output_token_list = (['<SOS>'] + output_token_list + ['<EOS>'])[:self.maxlen]
