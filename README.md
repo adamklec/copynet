@@ -11,7 +11,7 @@ of output sequences that contain "out of vocabulary" tokens that appeared in the
 - tqmd (for logging)
 - spacy (for tokenization)
 - jieba (for EN&ZH mixed tokenization)
-- matplotlib (for plotting the loss and BLUE score after training)
+- matplotlib (for plotting the loss and BLEU score after training)
 
 
 The model is trained on sequence pairs. Create a directory to hold training files. Each file should have 2 lines of text.

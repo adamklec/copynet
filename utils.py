@@ -47,9 +47,9 @@ def plots( val_loss, val_bleu, root_path ):
     ax2 = ax1.twinx()
 
     # 绘制 val BLEU 曲线
-    ax2.plot(epochs, val_bleu, color='tab:blue', label='val BLEU', marker='s')
-    ax2.set_ylabel('val BLEU', color='tab:blue')
-    ax2.tick_params(axis='y', labelcolor='tab:blue')
+    ax2.plot(epochs, val_bleu, color='tab:bleu', label='val BLEU', marker='s')
+    ax2.set_ylabel('val BLEU', color='tab:bleu')
+    ax2.tick_params(axis='y', labelcolor='tab:bleu')
 
     # 设置标题
     plt.title('Training Progress: val loss vs val BLEU')
