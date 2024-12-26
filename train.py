@@ -2,21 +2,27 @@ import argparse
 import os
 import time
 import numpy as np
+from spacy.lang.en import English
+from spacy.lang.zh import Chinese
 
 import torch
 from torch import optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-
+import shutil
 from dataset import SequencePairDataset
 from model.encoder_decoder import EncoderDecoder
 from evaluate import evaluate
-from utils import to_np, trim_seqs
-
+from utils import to_np, trim_seqs, plots
+import matplotlib.pyplot as plt
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 
+os.chdir("/home/jiangpeiwen2/jiangpeiwen2/Text2Cypher/baselines/copynet")
+
+lang_parser = Chinese()
+dataset_name = "SpCQL"
 
 def train(encoder_decoder: EncoderDecoder,
           train_data_loader: DataLoader,
@@ -32,11 +38,14 @@ def train(encoder_decoder: EncoderDecoder,
     optimizer = optim.Adam(encoder_decoder.parameters(), lr=lr)
     model_path = './model/' + model_name + '/'
 
+    best_select = [None, 0]
+    val_losses = []
+    val_bleues = []
     for epoch, teacher_forcing in enumerate(teacher_forcing_schedule):
         print('epoch %i' % epoch, flush=True)
 
         for batch_idx, (input_idxs, target_idxs, input_tokens, target_tokens) in enumerate(tqdm(train_data_loader)):
-            # input_idxs and target_idxs have dim (batch_size x max_len)
+            # input_idxs and target_idxs have dim (batch_size x max_len) torch.Size([100, 200])torch.Size([100, 200])
             # they are NOT sorted by length
 
             lengths = (input_idxs != 0).long().sum(dim=1)
@@ -88,6 +97,8 @@ def train(encoder_decoder: EncoderDecoder,
             global_step += 1
 
         val_loss, val_bleu_score = evaluate(encoder_decoder, val_data_loader)
+        val_losses.append( val_loss )
+        val_bleues.append( val_bleu_score )
 
         writer.add_scalar('val_loss', val_loss, global_step=global_step)
         writer.add_scalar('val_bleu_score', val_bleu_score, global_step=global_step)
@@ -109,9 +120,19 @@ def train(encoder_decoder: EncoderDecoder,
         writer.add_text('cancel', output_string, global_step=global_step)
 
         print('val loss: %.5f, val BLEU score: %.5f' % (val_loss, val_bleu_score), flush=True)
-        torch.save(encoder_decoder, "%s%s_%i.pt" % (model_path, model_name, epoch))
+        mode_save_path_name = f"{model_path}{model_name}_{epoch}.pt"
+        # torch.save(encoder_decoder, "%s%s_%i.pt" % (model_path, model_name, epoch))
+        torch.save( encoder_decoder, mode_save_path_name )
 
+        if best_select[1] < val_bleu_score:
+            best_select[1] = val_bleu_score
+            best_select[0] = mode_save_path_name
+        
         print('-' * 100, flush=True)
+    final_best_path = os.path.join( model_path, f"{model_name}.pt")
+    print( f"训练结束，表现最好的模型的BLEU = {best_select[1]}，路径为{best_select[0]}。移动至{final_best_path}" )
+    plots( val_losses, val_bleues, model_path)
+    shutil.copy(best_select[0], final_best_path)
 
 
 def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, val_size, lr, decoder_type, vocab_limit, hidden_size, embedding_size, max_length, seed=42):
@@ -131,12 +152,16 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
 
         print("creating training and validation datasets with saved languages", flush=True)
         train_dataset = SequencePairDataset(lang=encoder_decoder.lang,
+                                            data_path = f'./train_data/data_{dataset_name}/',
+                                            parser=lang_parser,
                                             use_cuda=use_cuda,
                                             is_val=False,
                                             val_size=val_size,
                                             use_extended_vocab=(encoder_decoder.decoder_type=='copy'))
 
         val_dataset = SequencePairDataset(lang=encoder_decoder.lang,
+                                          data_path = f'./train_data/data_{dataset_name}/',
+                                          parser=lang_parser,
                                           use_cuda=use_cuda,
                                           is_val=True,
                                           val_size=val_size,
@@ -146,7 +171,9 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
         os.mkdir(model_path)
 
         print("creating training and validation datasets", flush=True)
-        train_dataset = SequencePairDataset(vocab_limit=vocab_limit,
+        train_dataset = SequencePairDataset(vocab_limit=vocab_limit,                        # 获取数据集所有词表，7506
+                                            data_path = f'./train_data/data_{dataset_name}/',
+                                            parser=lang_parser,
                                             use_cuda=use_cuda,
                                             is_val=False,
                                             val_size=val_size,
@@ -154,6 +181,8 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
                                             use_extended_vocab=(decoder_type=='copy'))
 
         val_dataset = SequencePairDataset(lang=train_dataset.lang,
+                                          data_path = f'./train_data/data_{dataset_name}/',
+                                          parser=lang_parser,
                                           use_cuda=use_cuda,
                                           is_val=True,
                                           val_size=val_size,
@@ -163,8 +192,8 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
         print("creating encoder-decoder model", flush=True)
         encoder_decoder = EncoderDecoder(train_dataset.lang,
                                          max_length,
-                                         embedding_size,
                                          hidden_size,
+                                         embedding_size,
                                          decoder_type)
 
         torch.save(encoder_decoder, model_path + '/%s.pt' % model_name)
@@ -189,14 +218,14 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parse training parameters')
-    parser.add_argument('model_name', type=str,
+    parser.add_argument('--model_name', type=str, default="baseline_SpCQL_50e",
                         help='the name of a subdirectory of ./model/ that '
                              'contains encoder and decoder model files')
 
-    parser.add_argument('--epochs', type=int, default=50,
+    parser.add_argument('--epochs', type=int, default=1,
                         help='the number of epochs to train')
 
-    parser.add_argument('--use_cuda', action='store_true',
+    parser.add_argument('--use_cuda', action='store_true', default=True,
                         help='flag indicating that cuda will be used')
 
     parser.add_argument('--batch_size', type=int, default=100,
@@ -221,7 +250,7 @@ if __name__ == '__main__':
     parser.add_argument('--decoder_type', type=str, default='copy',
                         help="Allowed values 'copy' or 'attn'")
 
-    parser.add_argument('--vocab_limit', type=int, default=5000,
+    parser.add_argument('--vocab_limit', type=int, default=15000,
                         help='When creating a new Language object the vocab'
                              'will be truncated to the most frequently'
                              'occurring words in the training dataset.')
@@ -237,12 +266,11 @@ if __name__ == '__main__':
                         help='Sequences will be padded or truncated to this size.')
 
     args = parser.parse_args()
-
+    
     writer = SummaryWriter('./logs/%s_%s' % (args.model_name, str(int(time.time()))))
     if args.scheduled_teacher_forcing:
         schedule = np.arange(1.0, 0.0, -1.0/args.epochs)
     else:
         schedule = np.ones(args.epochs) * args.teacher_forcing_fraction
-
     main(args.model_name, args.use_cuda, args.batch_size, schedule, args.keep_prob, args.val_size, args.lr, args.decoder_type, args.vocab_limit, args.hidden_size, args.embedding_size, args.max_length)
     # main(str(int(time.time())), args.use_cuda, args.batch_size, schedule, args.keep_prob, args.val_size, args.lr, args.decoder_type, args.vocab_limit, args.hidden_size, args.embedding_size, args.max_length)

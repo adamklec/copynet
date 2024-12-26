@@ -4,12 +4,15 @@ This is an implementation of CopyNet https://arxiv.org/abs/1603.06393
 CopyNet extends the functionality of encoder-decoder models to allow the generation
 of output sequences that contain "out of vocabulary" tokens that appeared in the input sequence.
 
-Dependencies:
-pytorch
-numpy
-tensorboardX (for logging)
-tqmd (for logging)
-spacy (for tokenization)
+- Dependencies:
+- pytorch
+- numpy
+- tensorboardX (for logging)
+- tqmd (for logging)
+- spacy (for tokenization)
+- jieba (for EN&ZH mixed tokenization)
+- matplotlib (for plotting the loss and BLEU score after training)
+
 
 The model is trained on sequence pairs. Create a directory to hold training files. Each file should have 2 lines of text.
 The first is the input sequence, the second is the target output sequnce.
